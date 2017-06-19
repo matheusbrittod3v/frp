@@ -1,4 +1,4 @@
-// Copyright 2016 fatedier, fatedier@gmail.com
+// Copyright 2017 fatedier, fatedier@gmail.com
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,27 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tcp
+package net
 
 import (
-	"io"
-	"sync"
+	"net"
+
+	"github.com/fatedier/frp/utils/log"
 )
 
-// Join two io.ReadWriteCloser and do some operations.
-func Join(c1 io.ReadWriteCloser, c2 io.ReadWriteCloser) (inCount int64, outCount int64) {
-	var wait sync.WaitGroup
-	pipe := func(to io.ReadWriteCloser, from io.ReadWriteCloser, count *int64) {
-		defer to.Close()
-		defer from.Close()
-		defer wait.Done()
+type Listener interface {
+	Accept() (Conn, error)
+	Close() error
+	log.Logger
+}
 
-		*count, _ = io.Copy(to, from)
+type LogListener struct {
+	l net.Listener
+	net.Listener
+	log.Logger
+}
+
+func WrapLogListener(l net.Listener) Listener {
+	return &LogListener{
+		l:        l,
+		Listener: l,
+		Logger:   log.NewPrefixLogger(""),
 	}
+}
 
-	wait.Add(2)
-	go pipe(c1, c2, &inCount)
-	go pipe(c2, c1, &outCount)
-	wait.Wait()
-	return
+func (logL *LogListener) Accept() (Conn, error) {
+	c, err := logL.l.Accept()
+	return WrapConn(c), err
 }
