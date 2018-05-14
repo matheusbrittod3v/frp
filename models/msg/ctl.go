@@ -1,4 +1,4 @@
-// Copyright 2016 fatedier, fatedier@gmail.com
+// Copyright 2018 fatedier, fatedier@gmail.com
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,25 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package errors
+package msg
 
 import (
-	"errors"
-	"fmt"
+	"io"
+
+	jsonMsg "github.com/fatedier/golib/msg/json"
 )
+
+type Message = jsonMsg.Message
 
 var (
-	ErrMsgType   = errors.New("message type error")
-	ErrCtlClosed = errors.New("control is closed")
+	msgCtl *jsonMsg.MsgCtl
 )
 
-func PanicToError(fn func()) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("Panic error: %v", r)
-		}
-	}()
+func init() {
+	msgCtl = jsonMsg.NewMsgCtl()
+	for typeByte, msg := range msgTypeMap {
+		msgCtl.RegisterMsg(typeByte, msg)
+	}
+}
 
-	fn()
-	return
+func ReadMsg(c io.Reader) (msg Message, err error) {
+	return msgCtl.ReadMsg(c)
+}
+
+func ReadMsgInto(c io.Reader, msg Message) (err error) {
+	return msgCtl.ReadMsgInto(c, msg)
+}
+
+func WriteMsg(c io.Writer, msg interface{}) (err error) {
+	return msgCtl.WriteMsg(c, msg)
 }
